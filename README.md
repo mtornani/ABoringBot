@@ -9,7 +9,7 @@ Scope: lower leagues, Serie D / Lega Pro and below, where data is thin and few p
 - **Boring as in drilling.** Digging where few people look: lower-league fixtures, match reports, federation releases, local press.
 - **Boring as in unglamorous.** Most of the work is verification: matching minutes across sources, resolving conflicts, logging what was checked. The system is built to do that work every time, not to be interesting.
 
-Hand-maintained scraping scripts are replaced by fixed rules and weights. Agents collect and check data; the method decides.
+Agents replace hand-maintained scraping scripts. Agents collect and check data; a fixed, pre-registered method decides.
 
 ## Principles
 
@@ -90,7 +90,7 @@ Agents do not change weights, gates or quotas. Method changes are made by a huma
 
 Early. This repository does not yet contain the pipeline described above.
 
-- It contains an earlier scaffold from the project's previous phase (Cloudflare Worker + D1 schema, a prototype social posting script). It is not part of the Radar workflow and may be replaced.
+- It contains an earlier scaffold from the project's previous phase (Cloudflare Worker + D1 schema,). It is not part of the Radar workflow and may be replaced.
 - The v1.0 method and scoring script used for Release 01 are maintained outside this repository for now.
 
 ## Owner
