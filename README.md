@@ -93,16 +93,16 @@ Agents do not change weights, gates or quotas. Method changes are made by a huma
   - SofaScore: rounds, lineups, incidents (substitution and red-card minutes), dates of birth. Independent of Transfermarkt. Fetched through headless Chrome because its public JSON is only served to browsers.
   - Raw pages cached under `data/raw/<date>/<source>/` with an `index.jsonl` (URL, UTC retrieval time, HTTP status). robots.txt checked, 3 s / 2 s between requests.
   - Minutes use one convention for both sources (nominal minute, 90' per match, added-time substitute = 1').
-- **Reconciler** (`aboringbot/reconciler/`): club matching by name, match alignment by round + teams, player matching by normalized name + date of birth within club, standings / matches played / goals conceded computed from results at the cutoff, conflict rule of method v1.0 sec. 1 applied as written (`rules.py`), audit log of every conflict with per-match differences, identity log, optional manual third-source file (`data/manual/evidence.csv`, match reports read by a human) that can raise confidence to "alta".
+- **Reconciler** (`aboringbot/reconciler/`): club matching by name, match alignment by round + teams, player matching by normalized name + date of birth within club, standings / matches played / goals conceded computed from results at the cutoff, conflict rule of method v1.0 sec. 1 applied as written (`rules.py`), audit log of every conflict with per-match differences, identity log, manual match sheets (`data/manual/evidence.csv`: public match reports read by a human, source URL and retrieval date on every row) that act as the second source for matches an automated source does not cover.
 - **Output**: `data/out/<date>/round<NN>/reconciled.csv`, same schema as the Release 01 file; `score.py` runs on it unchanged. Club exclusions stay in a git-ignored local config (`config/local.example.toml`).
 - **Acceptance test** (`aboringbot cli accept`): diff against the manually reconciled Release 01 file, per-field match rate, every mismatch with its cause, picks and scores compared. Summary: [docs/acceptance_release01.md](docs/acceptance_release01.md).
 
-**Result of the acceptance test (cutoff: round 7, 40 Release 01 players):** identity matching 40/40; birth year, club, standings, matches played, goals conceded, appearances, starts and goals 100%; minutes 72%; assists 85%. The 10 picks are **not** reproduced under the strict rule: SofaScore published no lineups for 5 of 62 matches, so 26 of 40 players have part of their minutes from one source only and fall to "bassa". With confidence measured on the matches both sources cover (diagnostic, not the method), 8 of 10 picks coincide.
+**Result of the acceptance test (cutoff: round 7, 40 Release 01 players):** identity matching 40/40; birth year, club, standings, matches played, goals conceded, appearances, starts and goals 100%; minutes 70%; assists 85%. SofaScore published no lineups for 5 of 62 matches; with those 5 match sheets entered by hand from club and press reports, **9 of 10 picks are reproduced** under the strict rule (Tirapelle in place of Arpini: Release 01 had his minutes at "bassa" because zerozero mixed him with a namesake). Every remaining difference is listed and classified in the summary below.
 
 **Not working yet / still manual:**
 
 - zerozero/soccerzz, Calciotel, tuttocampo, I AM CALCIO and seried.it block automated access from this machine; they are not collected.
-- "alta" confidence needs an official match report or club/press report: no automated parser yet; a human enters them in `data/manual/evidence.csv`.
+- Match reports have no automated parser yet: a human enters match sheets in `data/manual/evidence.csv`. Total-level "alta" confidence is not entered.
 - Club-link exclusions (ownership, loans, youth sector) need a human profile check.
 - Scorer, Explainer, Auditor are not agents yet: `score.py` (method v1.0) is run by hand.
 

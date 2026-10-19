@@ -4,7 +4,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from .. import config as config_mod
-from . import identity, rules
+from . import identity, rules, evidence as evidence_mod
 
 FIELDS = ["presenze", "titolari", "minuti", "gol", "assist"]
 KEY = {"minuti": "conf_minuti", "gol": "conf_gol", "assist": "conf_assist"}
@@ -86,11 +86,11 @@ def _val(f, pm):
 
 
 def load_evidence(path):
-    """Manual third source (match reports, club or press reports read by a human).
+    """Manual per-player totals (older format; match sheets are read by evidence.py).
     CSV columns: nome, club, field (minuti|gol|assist|presenze|titolari), value, source_type
     (tabellino|cronaca|other), url, note."""
     ev = defaultdict(list)
-    if path and Path(path).exists():
+    if path and Path(path).exists() and not evidence_mod.is_sheet_file(path):
         for r in csv.DictReader(open(path)):
             ev[(identity.norm(r["nome"]), r["field"])].append(r)
     return ev
@@ -141,10 +141,16 @@ def run(out, cfg, universe=None, coverage_mode="strict", evidence=None):
     match_by_id = {mm["id"]: mm for mm in final_matches}
     no_lu = {str(x) for x in (ss or {}).get("no_lineup", [])}
     uncovered = {mm["id"] for mm in final_matches if not mm["ss_id"] or mm["ss_id"] in no_lu}
+    # manual match sheets (data/manual/evidence.csv) replace the missing second source per team
+    man_cov, man_val = {}, {}
+    if evidence and evidence_mod.is_sheet_file(evidence):
+        man_cov, man_val = evidence_mod.build(evidence, tm, names, final_matches, log)
     for mid in sorted(uncovered):
         m = match_by_id[mid]
+        teams_cov = [names[c] for c in (m["home"], m["away"]) if (mid, c) in man_cov]
         log("coverage", match=f"R{m['round']} {names[m['home']]}-{names[m['away']]}",
-            decision="second source has no lineup: player figures from this match are single-source", url_tm=m["url"])
+            decision=("second source has no lineup: player figures from this match are single-source"
+                      + (f" (except teams with a manual sheet: {', '.join(teams_cov)})" if teams_cov else "")), url_tm=m["url"])
     pairs = {}  # tm_pid -> ss_pid
     for t_cid in team_ids:
         L = {p: tm["players"][p] for p, a in A_tm.items() if a["club"] == t_cid}
@@ -161,6 +167,7 @@ def run(out, cfg, universe=None, coverage_mode="strict", evidence=None):
             idlog.append(dict(kind="player_unmatched", club=names.get(t_cid), ss_id=r, ss_name=R[r]["name"], ss_dob=R[r].get("dob")))
     # ss-only players are kept only for the audit (no TM role -> cannot be scored)
     ev = load_evidence(evidence)
+    app_club = {(x["match"], x["player"]): x["club"] for x in tm["apps"]}
     excl = cfg["exclusions"]
     roles = cfg["roles"]
     rows = []
@@ -183,10 +190,25 @@ def run(out, cfg, universe=None, coverage_mode="strict", evidence=None):
             continue
         row = dict(nome=p["name"], nato=nato, ruolo=ruolo, club=names.get(a["club"], a["club"]),
                    _tm=pid, _ss=pairs.get(pid), _pos_tm=p.get("position"))
-        unc = [mid for mid in a["per_match"] if mid in uncovered]
+        # matches without SofaScore lineup where this player's team (in that match) has a manual sheet
+        def _club(mid):
+            return app_club.get((mid, pid), a["club"])
+        man_mids = [mid for mid in uncovered if (mid, _club(mid)) in man_cov]
         for f in FIELDS:
             va = a[f] if not (f == "minuti" and a["minutes_unknown"]) else None
             vb = b[f] if b and not (f == "minuti" and b["minutes_unknown"]) else None
+            # a manual sheet covers field f for a match if the sheet gives that value
+            # (assists can be "not reported"; minutes unknown if a sub/red minute is missing)
+            cov_f = [mid for mid in man_mids
+                     if not ((f == "assist" and not man_cov[(mid, _club(mid))]["assists_known"])
+                             or (f == "minuti" and (mid, pid) in man_val and man_val[(mid, pid)][0] is None))]
+            man_sum = sum(_val(f, man_val.get((mid, pid))) or 0 for mid in cov_f)
+            if cov_f:
+                if vb is not None:
+                    vb = vb + man_sum
+                elif b is None and all(mid in cov_f for mid in a["per_match"]):
+                    vb = man_sum   # player only ever seen in matches covered by a sheet
+            unc = [mid for mid in a["per_match"] if mid in uncovered and mid not in cov_f]
             part = sum(_val(f, a["per_match"][mid]) or 0 for mid in unc)
             if unc and va is not None and vb is not None:
                 # second source has no lineup for some matches of this player: compare on the
@@ -215,17 +237,27 @@ def run(out, cfg, universe=None, coverage_mode="strict", evidence=None):
                 row[KEY[f]] = conf
             if st not in ("confirmed", "confirmed_evidence"):
                 diffs = []
-                if a and b:
+                b_ = b or {"per_match": {}}
+                if a:
                     for mid, pm in a["per_match"].items():
                         m = match_by_id[mid]
+                        if mid in cov_f:
+                            vm = _val(f, man_val[(mid, pid)]) if (mid, pid) in man_val else 0  # not in sheet = did not play
+                            if _val(f, pm) != vm:
+                                diffs.append(f"R{m['round']} {names[m['home']]}-{names[m['away']]}: tm {_val(f, pm)} manual {vm}")
+                            continue
                         if mid in uncovered:
                             diffs.append(f"R{m['round']} {names[m['home']]}-{names[m['away']]}: tm {_val(f, pm)} ss no-lineup")
                             continue
-                        o = b["per_match"].get(m["ss_id"])
+                        o = b_["per_match"].get(m["ss_id"])
                         vt, vs = _val(f, pm), _val(f, o) if o else (0 if f != "minuti" else None)
                         if vt != vs:
                             diffs.append(f"R{m['round']} {names[m['home']]}-{names[m['away']]}: tm {vt} ss {vs}")
-                    for smid, o in b["per_match"].items():
+                    for (mmid, mpid), mv in man_val.items():
+                        if mpid == pid and mmid in cov_f and mmid not in a["per_match"]:
+                            m = match_by_id[mmid]
+                            diffs.append(f"R{m['round']} {names[m['home']]}-{names[m['away']]}: tm not-in-lineup manual {_val(f, mv)}")
+                    for smid, o in b_["per_match"].items():
                         if ss_match_to_tm.get(smid) not in a["per_match"]:
                             m = match_by_id.get(ss_match_to_tm.get(smid))
                             lab = f"R{m['round']} {names[m['home']]}-{names[m['away']]}" if m else f"ss event {smid}"
