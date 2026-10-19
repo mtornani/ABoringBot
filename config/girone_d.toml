@@ -1,0 +1,63 @@
+# Serie D 2026-27, girone D. Committed config: no discretionary choices beyond the method.
+[competition]
+name = "Serie D girone D"
+season = 2026
+tm_code = "IT4D"
+tm_slug = "serie-d-girone-d"
+sofascore_unique_tournament = 1380
+sofascore_season_year = "26/27"
+n_teams = 18
+
+[method]
+min_birth_year = 2003
+# conflict rule, metodo.md sec. 1 (fixed in advance)
+max_gap_goals_assists = 1
+max_gap_minutes = 30
+
+[fetch]
+tm_delay_s = 3.0
+sofascore_delay_s = 2.0
+
+# Transfermarkt position (Italian, main position) -> role group (metodo.md, Changelog sec. 1)
+[roles]
+"Difensore centrale" = "CB"
+"Terzino sinistro" = "FB"
+"Terzino destro" = "FB"
+"Esterno di sinistra" = "FB"
+"Esterno di destra" = "FB"
+"Mediano" = "MID"
+"Centrocampista" = "MID"
+"Centrocampo" = "MID"
+"Trequartista" = "MID"
+"Ala sinistra" = "ATT"
+"Ala destra" = "ATT"
+"Seconda punta" = "ATT"
+"Punta centrale" = "ATT"
+"Attacco" = "ATT"
+"Difesa" = "CB"
+"Portiere" = "GK"
+
+# Display names (short) keyed by Transfermarkt club id. Clubs not listed keep the TM name.
+[club_names]
+1307 = "Pistoiese"
+50977 = "Cittadella Vis Modena"
+50258 = "Varesina"
+58028 = "Casatese Merate"
+46157 = "Lentigione"
+2254 = "Pro Sesto"
+5174 = "Pavia"
+27458 = "Sant'Angelo"
+83362 = "Varese"
+59916 = "Castellanzese"
+38561 = "Correggese"
+22188 = "Crema"
+14888 = "Pontedera"
+59913 = "Oltrepò"
+10618 = "Tropical Coriano"
+5515 = "Solbiatese"
+56801 = "Arconatese"
+
+[output]
+# Base columns of the reconciled CSV (same schema as the Release 01 file).
+# Exclusion flag columns are inserted before gs_squadra, names taken from config/local.toml.
+columns = ["nome","nato","ruolo","club","pos_classifica","partite_squadra","presenze","titolari","minuti","gol","assist","conf_minuti","conf_gol","conf_assist","gs_squadra"]

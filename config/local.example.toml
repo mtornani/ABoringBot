@@ -1,0 +1,11 @@
+# Copy to config/local.toml (git-ignored). Club/player exclusions of the method (sec. 2.4)
+# are kept out of the repository. Each table becomes a 0/1 column in the output CSV.
+# Column names must match the ones score.py expects.
+
+[exclusions.excluded_club_flag]
+tm_club_ids = []        # every player of these clubs gets 1
+players = []            # "Name Surname|Club" pairs flagged by hand after a profile check
+
+[exclusions.link_flag]
+tm_club_ids = []
+players = []
