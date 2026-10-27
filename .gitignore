@@ -4,3 +4,11 @@ data/raw/
 data/out/
 config/local.toml
 .pytest_cache/
+
+# security hygiene
+.env
+.env.*
+!.env.example
+*.local.json
+__pycache__/
+node_modules/
