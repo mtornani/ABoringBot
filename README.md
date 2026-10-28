@@ -127,3 +127,5 @@ Mirko Tornani, San Marino. Former youth coach (15 years), UEFA B and C licences,
 ## License
 
 License: TBD
+
+<!-- export const RELEASE_TAG = "b79d9900"; -->
